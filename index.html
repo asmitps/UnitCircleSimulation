@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Circle Pro</title>
+    <style>
+        :root {
+            /* Palette */
+            --bg: #0b0b0e;
+            --panel: #141418;
+            --border: #2a2a30;
+            --text: #e0e0e0;
+            --text-mute: #70707a;
+            
+            /* Math Colors */
+            --c-cos: #00f0ff; /* Cyan */
+            --c-sin: #ff0050; /* Red */
+            --c-tan: #00ff88; /* Green */
+            --c-sec: #ffaa00; /* Orange */
+            --c-csc: #b300ff; /* Violet */
+            --c-cot: #ffffff; /* White */
+            --c-grid: #1f1f25;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        /* --- LEFT: CANVAS AREA --- */
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            background-image: 
+                linear-gradient(var(--c-grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: center;
+            cursor: crosshair;
+            overflow: hidden;
+        }
+        
+        canvas { display: block; }
+
+        /* Floating HUD inside Canvas */
+        .hud {
+            position: absolute;
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            pointer-events: none;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            color: var(--text-mute);
+        }
+        .hud strong { color: #fff; }
+
+        /* --- RIGHT: CONTROLS --- */
+        #sidebar {
+            width: 360px;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        /* Scrollbar styling */
+        #sidebar::-webkit-scrollbar { width: 6px; }
+        #sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            background: #111;
+        }
+        .header h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+        .header span { font-size: 10px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 1px; }
+
+        .control-group {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .group-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        /* Custom Inputs */
+        .row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+        
+        input[type="number"] {
+            background: #08080a;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 6px 8px;
+            border-radius: 4px;
+            width: 100%;
+            font-family: monospace;
+        }
+        input[type="number"]:focus { border-color: var(--c-cos); outline: none; }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        /* Toggles */
+        .toggle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .toggle-btn {
+            background: #1a1a20;
+            border: 1px solid var(--border);
+            color: #666;
+            padding: 8px 0;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .toggle-btn:hover { background: #222; }
+        
+        /* Active States with Glows */
+        .toggle-btn.active { color: #000; border-color: transparent; }
+        .toggle-btn[data-t="sin"].active { background: var(--c-sin); box-shadow: 0 0 10px var(--c-sin); color:#fff; }
+        .toggle-btn[data-t="cos"].active { background: var(--c-cos); box-shadow: 0 0 10px var(--c-cos); }
+        .toggle-btn[data-t="tan"].active { background: var(--c-tan); box-shadow: 0 0 10px var(--c-tan); }
+        .toggle-btn[data-t="sec"].active { background: var(--c-sec); box-shadow: 0 0 10px var(--c-sec); }
+        .toggle-btn[data-t="csc"].active { background: var(--c-csc); box-shadow: 0 0 10px var(--c-csc); color:#fff; }
+        .toggle-btn[data-t="cot"].active { background: var(--c-cot); box-shadow: 0 0 10px var(--c-cot); }
+
+        /* Data Table */
+        .data-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        .data-table td { padding: 6px 0; border-bottom: 1px solid #222; }
+        .data-table .val { text-align: right; color: #fff; }
+        
+        /* Play Button */
+        .btn-play {
+            width: 100%;
+            background: var(--text);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-play.active { background: #ff3333; color: white; }
+
+        label { font-size: 11px; color: #888; display: block; margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="viewport">
+        <canvas id="canvas"></canvas>
+        <div class="hud" style="top: 20px; left: 20px;">
+            MOUSE<br>
+            <strong><span id="hud-x">0.00</span>, <span id="hud-y">0.00</span></strong>
+        </div>
+        <div class="hud" style="top: 20px; right: 20px; text-align: right;">
+            ANGLE<br>
+            <strong><span id="hud-deg">0</span>°</strong> / <strong><span id="hud-rad">0.00</span>π</strong>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="header">
+            <span>Simulation Engine</span>
+            <h1>Unit Circle Pro</h1>
+        </div>
+
+        <!-- INPUTS -->
+        <div class="control-group">
+            <div class="group-title">Angle Control</div>
+            <div style="margin-bottom: 15px;">
+                <input type="range" id="slider-deg" min="0" max="360" step="0.1" value="45">
+            </div>
+            <div class="row">
+                <div style="flex:1">
+                    <label>Degrees (°)</label>
+                    <input type="number" id="inp-deg" value="45">
+                </div>
+                <div style="flex:1">
+                    <label>Radians (π)</label>
+                    <input type="number" id="inp-rad" value="0.25">
+                </div>
+            </div>
+            <button id="btn-anim" class="btn-play">ROTATE AUTO</button>
+        </div>
+
+        <!-- DATA -->
+        <div class="control-group">
+            <div class="group-title">Real-Time Values</div>
+            <table class="data-table">
+                <tr style="color:var(--c-sin)"><td>sin(θ)</td><td class="val" id="v-sin">0.000</td></tr>
+                <tr style="color:var(--c-cos)"><td>cos(θ)</td><td class="val" id="v-cos">0.000</td></tr>
+                <tr style="color:var(--c-tan)"><td>tan(θ)</td><td class="val" id="v-tan">0.000</td></tr>
+                <tr style="color:var(--c-sec)"><td>sec(θ)</td><td class="val" id="v-sec">0.000</td></tr>
+                <tr style="color:var(--c-csc)"><td>csc(θ)</td><td class="val" id="v-csc">0.000</td></tr>
+                <tr style="color:var(--c-cot)"><td>cot(θ)</td><td class="val" id="v-cot">0.000</td></tr>
+            </table>
+        </div>
+
+        <!-- VISUALS -->
+        <div class="control-group">
+            <div class="group-title">Visual Layers</div>
+            <div class="toggle-grid">
+                <div class="toggle-btn active" data-t="sin">SIN</div>
+                <div class="toggle-btn active" data-t="cos">COS</div>
+                <div class="toggle-btn active" data-t="tan">TAN</div>
+                <div class="toggle-btn" data-t="sec">SEC</div>
+                <div class="toggle-btn" data-t="csc">CSC</div>
+                <div class="toggle-btn" data-t="cot">COT</div>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:5px;">
+                <div class="toggle-btn active" data-t="labels" style="flex:1">LABELS</div>
+                <div class="toggle-btn active" data-t="ghost" style="flex:1">GHOST</div>
+            </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="control-group">
+            <div class="group-title">Settings</div>
+            <label>Zoom Level</label>
+            <input type="range" id="zoom" min="100" max="400" value="200">
+            <br>
+            <label>Anim Speed</label>
+            <input type="range" id="speed" min="-5" max="5" step="0.1" value="0.5">
+        </div>
+
+    </div>
+
+<script>
+    /**
+     * UNIT CIRCLE PRO
+     * A polished, high-performance simulation.
+     */
+    
+    const STATE = {
+        angle: Math.PI / 4, // Radians, standard math direction (CCW)
+        radius: 200,
+        animating: false,
+        speed: 0.5,
+        layers: {
+            sin: true, cos: true, tan: true,
+            sec: false, csc: false, cot: false,
+            labels: true, ghost: true
+        }
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimization
+    const elIds = ['inp-deg', 'inp-rad', 'slider-deg', 'v-sin', 'v-cos', 'v-tan', 'v-sec', 'v-csc', 'v-cot', 'hud-deg', 'hud-rad', 'hud-x', 'hud-y'];
+    const UI = {};
+    elIds.forEach(id => UI[id] = document.getElementById(id));
+
+    let cx, cy; // Center X, Y
+
+    // --- INITIALIZATION ---
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        loop();
+        bindEvents();
+    }
+
+    function resize() {
+        canvas.width = document.getElementById('viewport').offsetWidth;
+        canvas.height = document.getElementById('viewport').offsetHeight;
+        cx = canvas.width / 2;
+        cy = canvas.height / 2;
+    }
+
+    // --- INPUT HANDLING ---
+    function bindEvents() {
+        // Slider
+        UI['slider-deg'].addEventListener('input', e => setAngle(parseFloat(e.target.value) * Math.PI / 180));
+        
+        // Typed Inputs
+        UI['inp-deg'].addEventListener('input', e => setAngle(parseFloat(e.target.value) * Math.PI / 180));
+        UI['inp-rad'].addEventListener('input', e => setAngle(parseFloat(e.target.value) * Math.PI));
+
+        // Toggles
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.t;
+                STATE.layers[key] = !STATE.layers[key];
+                btn.classList.toggle('active');
+            });
+        });
+
+        // Animation
+        document.getElementById('btn-anim').addEventListener('click', function() {
+            STATE.animating = !STATE.animating;
+            this.textContent = STATE.animating ? "STOP ROTATION" : "ROTATE AUTO";
+            this.classList.toggle('active');
+        });
+
+        // Settings
+        document.getElementById('zoom').addEventListener('input', e => STATE.radius = parseInt(e.target.value));
+        document.getElementById('speed').addEventListener('input', e => STATE.speed = parseFloat(e.target.value));
+
+        // Mouse Interaction
+        let isDragging = false;
+        canvas.addEventListener('mousedown', e => { isDragging = true; handleMouse(e); });
+        window.addEventListener('mousemove', e => {
+            if (isDragging) handleMouse(e);
+            // HUD Update even if not dragging
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - cx) / STATE.radius;
+            const y = -(e.clientY - rect.top - cy) / STATE.radius;
+            UI['hud-x'].innerText = x.toFixed(2);
+            UI['hud-y'].innerText = y.toFixed(2);
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+    }
+
+    function handleMouse(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left - cx;
+        const my = e.clientY - rect.top - cy;
+        // Invert Y for math (Canvas Y is down, Math Y is up)
+        let ang = Math.atan2(-my, mx);
+        if (ang < 0) ang += Math.PI * 2;
+        setAngle(ang);
+    }
+
+    function setAngle(rad) {
+        STATE.angle = rad; // Keep raw radians for math
+        updateUI();
+    }
+
+    // --- UPDATE LOGIC ---
+    function updateUI() {
+        // Normalize for display (0 to 2PI)
+        let norm = STATE.angle % (Math.PI * 2);
+        if (norm < 0) norm += Math.PI * 2;
+        
+        const deg = norm * 180 / Math.PI;
+        
+        // Prevent infinite input loops by checking focus
+        if(document.activeElement !== UI['slider-deg']) UI['slider-deg'].value = deg;
+        if(document.activeElement !== UI['inp-deg']) UI['inp-deg'].value = deg.toFixed(1);
+        if(document.activeElement !== UI['inp-rad']) UI['inp-rad'].value = (norm / Math.PI).toFixed(2);
+
+        // Update HUD
+        UI['hud-deg'].innerText = deg.toFixed(0);
+        UI['hud-rad'].innerText = (norm / Math.PI).toFixed(2);
+
+        // Update Table
+        const s = Math.sin(STATE.angle);
+        const c = Math.cos(STATE.angle);
+        const t = Math.tan(STATE.angle);
+
+        const fmt = n => {
+            if (Math.abs(n) > 1000) return "∞";
+            return n.toFixed(3);
+        }
+
+        UI['v-sin'].innerText = fmt(s);
+        UI['v-cos'].innerText = fmt(c);
+        UI['v-tan'].innerText = fmt(t);
+        UI['v-sec'].innerText = fmt(1/c);
+        UI['v-csc'].innerText = fmt(1/s);
+        UI['v-cot'].innerText = fmt(1/t);
+    }
+
+    // --- DRAWING ENGINE ---
+    
+    // Helper for lines with glow
+    function line(x1, y1, x2, y2, color, width=2, dash=[]) {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.setLineDash(dash);
+        // Canvas Y is inverted relative to Math Y
+        ctx.moveTo(cx + x1, cy - y1);
+        ctx.lineTo(cx + x2, cy - y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Simple Glow effect
+        if(width > 1 && color !== '#555' && color !== '#fff') {
+            ctx.globalAlpha = 0.2;
+            ctx.lineWidth = width + 4;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function label(txt, x, y, color) {
+        if(!STATE.layers.labels) return;
+        ctx.font = "bold 11px Inter, sans-serif";
+        const w = ctx.measureText(txt).width;
+        
+        // Backdrop
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(cx + x - w/2 - 3, cy - y - 10, w + 6, 14);
+        
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = color;
+        ctx.fillText(txt, cx + x, cy - y - 3);
+    }
+
+    function draw() {
+        // Clear
+        ctx.fillStyle = STATE.layers.ghost ? "rgba(11, 11, 14, 0.2)" : "#0b0b0e";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const R = STATE.radius;
+        const A = STATE.angle;
+        
+        // Math Coords
+        const cos = Math.cos(A);
+        const sin = Math.sin(A);
+        const tan = Math.tan(A);
+        const px = cos * R;
+        const py = sin * R;
+
+        // --- BACKGROUND ELEMENTS ---
+        
+        // Axes
+        line(-cx, 0, cx, 0, '#333', 1);
+        line(0, -cy, 0, cy, '#333', 1);
+
+        // Main Circle
+        ctx.beginPath();
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 2;
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Angle Wedge (Filled Sector)
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        // Canvas Arc is Clockwise, we need to flip the angle logic for visual math standard
+        ctx.arc(cx, cy, 40, 0, -A, true); 
+        ctx.lineTo(cx, cy);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // --- TRIG COMPONENTS ---
+
+        // 1. COSINE (Base)
+        if(STATE.layers.cos) {
+            line(0, 0, px, 0, 'var(--c-cos)', 3);
+            line(px, 0, px, py, 'var(--c-cos)', 1, [4,4]); // Drop line
+            label(cos.toFixed(2), px/2, -15, '#00f0ff');
+        }
+
+        // 2. SINE (Height)
+        if(STATE.layers.sin) {
+            line(px, 0, px, py, 'var(--c-sin)', 3);
+            line(0, py, px, py, 'var(--c-sin)', 1, [4,4]); // Drop line to Y axis
+            label(sin.toFixed(2), px + (px>0?20:-20), py/2, '#ff0050');
+        }
+
+        // 3. TANGENT (Vertical at x=1)
+        if(STATE.layers.tan) {
+            const dir = cos >= 0 ? 1 : -1;
+            const tx = R * dir;
+            const ty = tx * tan;
+            
+            // Clamp infinity drawing
+            if(Math.abs(ty) < 10000) {
+                line(tx, 0, tx, ty, 'var(--c-tan)', 2);
+                line(0, 0, tx, ty, '#444', 1, [2,2]); // Extension from center
+                label(tan.toFixed(2), tx + (dir*25), ty/2, '#00ff88');
+            }
+        }
+
+        // 4. COTANGENT (Horizontal at y=1)
+        if(STATE.layers.cot) {
+            const dir = sin >= 0 ? 1 : -1;
+            const cy_pos = R * dir;
+            const cx_pos = cy_pos / tan;
+
+            if(Math.abs(cx_pos) < 10000) {
+                line(0, cy_pos, cx_pos, cy_pos, 'var(--c-cot)', 2);
+                line(0, 0, cx_pos, cy_pos, '#444', 1, [2,2]);
+                label((1/tan).toFixed(2), cx_pos/2, cy_pos + (dir*15), '#fff');
+            }
+        }
+
+        // 5. SECANT (Intersection X)
+        if(STATE.layers.sec) {
+            const sx = R / cos;
+            if(Math.abs(sx) < 5000) {
+                line(0, 0, sx, 0, 'var(--c-sec)', 4); // Draw on axis
+                // Visual connector from point
+                line(px, py, sx, 0, 'var(--c-sec)', 1, [2,4]);
+                label((1/cos).toFixed(2), sx, 20, '#ffaa00');
+            }
+        }
+
+        // 6. COSECANT (Intersection Y)
+        if(STATE.layers.csc) {
+            const sy = R / sin;
+            if(Math.abs(sy) < 5000) {
+                line(0, 0, 0, sy, 'var(--c-csc)', 4); // Draw on axis
+                line(px, py, 0, sy, 'var(--c-csc)', 1, [2,4]);
+                label((1/sin).toFixed(2), 20, sy, '#b300ff');
+            }
+        }
+
+        // HYPOTENUSE (Radius)
+        line(0, 0, px, py, '#fff', 2);
+        
+        // POINT
+        ctx.beginPath();
+        ctx.fillStyle = "#fff";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "#fff";
+        ctx.arc(cx + px, cy - py, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Loop
+        if(STATE.animating) {
+            STATE.angle += STATE.speed * 0.02;
+            updateUI();
+        }
+        
+        requestAnimationFrame(draw);
+    }
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
