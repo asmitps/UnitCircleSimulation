@@ -3,747 +3,581 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ULTIMATE UNIT CIRCLE ENGINE</title>
+    <title>PRECISION UNIT CIRCLE SIMULATOR</title>
     <style>
         :root {
-            --bg: #000000;
-            --panel: rgba(10, 10, 10, 0.95);
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-dim: #888;
             --border: #333;
-            --accent: #00ffcc;
-            --text: #aaa;
-            --text-hi: #fff;
+            
+            --c-cos: #00ffff; /* Cyan */
+            --c-sin: #ff0055; /* Magenta */
+            --c-tan: #00ff00; /* Lime */
+            --c-sec: #ffaa00; /* Orange */
+            --c-csc: #bf00ff; /* Purple */
+            --c-cot: #ffffff; /* White */
         }
 
         body {
             margin: 0;
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Segoe UI', 'Roboto', monospace;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
             overflow: hidden;
-            background: var(--bg);
-            font-family: 'Consolas', 'Monaco', monospace;
-            color: var(--text);
-            user-select: none;
         }
 
-        canvas {
-            display: block;
+        /* LEFT SIDE: CANVAS */
+        #canvas-container {
+            position: relative;
+            background: #000;
+            overflow: hidden;
             cursor: crosshair;
         }
+        
+        canvas { display: block; }
 
-        /* THE CONTROL PANEL - FLOATING */
-        #ui-container {
+        /* OVERLAYS ON CANVAS */
+        .overlay-info {
             position: absolute;
-            top: 0;
-            right: 0;
-            width: 340px;
-            height: 100vh;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border: 1px solid #444;
+        }
+
+        /* RIGHT SIDE: DASHBOARD */
+        #dashboard {
             background: var(--panel);
             border-left: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.8);
-            z-index: 100;
-            transition: transform 0.3s ease;
-        }
-        
-        #ui-container.collapsed {
-            transform: translateX(340px);
+            overflow-y: auto;
         }
 
-        #ui-header {
+        header {
+            padding: 15px;
+            background: #252525;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .section {
             padding: 15px;
             border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #111;
-        }
-        
-        h1 { margin: 0; font-size: 14px; letter-spacing: 1px; color: var(--accent); text-transform: uppercase; }
-
-        #toggle-ui {
-            position: absolute;
-            left: -30px;
-            top: 50%;
-            width: 30px;
-            height: 60px;
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-right: none;
-            cursor: pointer;
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            border-radius: 4px 0 0 4px;
         }
 
-        /* SCROLLABLE CONTENT */
-        #ui-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        /* CUSTOM SCROLLBAR */
-        #ui-content::-webkit-scrollbar { width: 6px; }
-        #ui-content::-webkit-scrollbar-track { background: #000; }
-        #ui-content::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-
-        /* SECTIONS */
-        .section {
-            border: 1px solid var(--border);
-            margin-bottom: 10px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .section-header {
-            padding: 8px 10px;
-            background: #1a1a1a;
-            cursor: pointer;
+        .section-title {
             font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 10px;
             font-weight: bold;
-            color: #fff;
-            display: flex;
-            justify-content: space-between;
         }
-        .section-header:hover { background: #252525; }
-        .section-header::after { content: '+'; }
-        .section.open .section-header::after { content: '-'; }
 
-        .section-body {
-            display: none;
-            padding: 10px;
+        /* INPUT GRIDS */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
         }
-        .section.open .section-body { display: block; }
 
-        /* CONTROLS */
-        .control-row {
+        .input-group {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
+            flex-direction: column;
+        }
+
+        .input-group label {
             font-size: 10px;
-        }
-        
-        label { flex: 1; color: #ccc; }
-        
-        input[type="range"] {
-            flex: 1.5;
-            height: 2px;
-            background: #444;
-            -webkit-appearance: none;
-            margin: 0 10px;
-            outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 10px; height: 10px;
-            background: var(--accent);
-            border-radius: 50%;
-            cursor: pointer;
+            color: var(--text-dim);
+            margin-bottom: 4px;
         }
 
-        input[type="color"] {
-            width: 20px; height: 20px;
-            background: none; border: none;
-            cursor: pointer;
-            padding: 0;
-        }
-
-        input[type="checkbox"] { cursor: pointer; }
-        
-        .val-display { width: 35px; text-align: right; color: var(--accent); }
-
-        /* BUTTONS */
-        .btn-row { display: flex; gap: 5px; margin-top: 10px; }
-        button {
-            flex: 1;
-            background: #222;
+        input[type="number"], input[type="text"] {
+            background: #111;
             border: 1px solid #444;
             color: #fff;
-            padding: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 10px;
-            text-transform: uppercase;
-            transition: 0.2s;
+            padding: 6px;
+            font-family: monospace;
+            font-size: 13px;
         }
-        button:hover { background: var(--accent); color: #000; }
-        button.danger:hover { background: #f05; color: #fff; }
+        input:focus { border-color: var(--c-cos); outline: none; }
 
-        /* STATS OVERLAY */
-        #stats {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            pointer-events: none;
-            line-height: 1.4;
+        /* SLIDERS */
+        .slider-group { margin-bottom: 15px; }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
         }
-        .stat-val { color: var(--accent); font-weight: bold; margin-left: 10px; }
+
+        /* DATA TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        td { padding: 4px; border-bottom: 1px solid #333; }
+        .val-col { text-align: right; color: #fff; font-weight: bold; }
+        .row-sin { color: var(--c-sin); }
+        .row-cos { color: var(--c-cos); }
+        .row-tan { color: var(--c-tan); }
+        .row-sec { color: var(--c-sec); }
+        .row-csc { color: var(--c-csc); }
+        .row-cot { color: var(--c-cot); }
+
+        /* TOGGLES */
+        .toggle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+        .toggle-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #888;
+            padding: 8px 0;
+            text-align: center;
+            font-size: 11px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-btn:hover { background: #333; }
+        .toggle-btn.active { background: #fff; color: #000; font-weight: bold; border-color: #fff; }
+        
+        /* Color specific active states */
+        .toggle-btn[data-type="sin"].active { background: var(--c-sin); color: #fff; border-color: var(--c-sin); }
+        .toggle-btn[data-type="cos"].active { background: var(--c-cos); color: #000; border-color: var(--c-cos); }
+        .toggle-btn[data-type="tan"].active { background: var(--c-tan); color: #000; border-color: var(--c-tan); }
+        .toggle-btn[data-type="sec"].active { background: var(--c-sec); color: #000; border-color: var(--c-sec); }
+        .toggle-btn[data-type="csc"].active { background: var(--c-csc); color: #fff; border-color: var(--c-csc); }
+        .toggle-btn[data-type="cot"].active { background: var(--c-cot); color: #000; border-color: var(--c-cot); }
+
+        .btn-action {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            margin-top: 5px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .btn-action.active { background: #d00; }
 
     </style>
 </head>
 <body>
 
-    <canvas id="canvas"></canvas>
-    
-    <div id="stats">
-        <div>FPS: <span id="fps" class="stat-val">60</span></div>
-        <div>θ (rad): <span id="rad" class="stat-val">0.00</span></div>
-        <div>Coords: <span id="coords" class="stat-val">0, 0</span></div>
+    <div id="canvas-container">
+        <canvas id="simCanvas"></canvas>
+        <div class="overlay-info">
+            <div style="font-size: 10px; color: #888;">COORDINATES</div>
+            <div id="mouse-coords" style="font-family: monospace;">0.00, 0.00</div>
+        </div>
     </div>
 
-    <div id="ui-container">
-        <div id="toggle-ui" onclick="document.getElementById('ui-container').classList.toggle('collapsed')">⚙</div>
-        
-        <div id="ui-header">
-            <h1>UNIT CORE v9.0</h1>
-            <div style="font-size:10px; color:#555">DEV: USER</div>
+    <div id="dashboard">
+        <header>Unit Circle Laboratory</header>
+
+        <!-- MANUAL INPUTS -->
+        <div class="section">
+            <div class="section-title">Angle Control</div>
+            <div class="slider-group">
+                <input type="range" id="slider-deg" min="0" max="360" step="0.1" value="45">
+            </div>
+            <div class="control-grid">
+                <div class="input-group">
+                    <label>Degrees (°)</label>
+                    <input type="number" id="inp-deg" value="45" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label>Radians (π)</label>
+                    <input type="number" id="inp-rad" value="0.25" step="0.01">
+                </div>
+            </div>
+            <button id="btn-animate" class="btn-action">Start Rotation</button>
         </div>
 
-        <div id="ui-content">
-            <!-- Dynamic Content Injected Here -->
+        <!-- DATA READOUT -->
+        <div class="section">
+            <div class="section-title">Live Data Feed</div>
+            <table>
+                <tr class="row-sin"><td>sin(θ)</td><td class="val-col" id="val-sin">0.0000</td></tr>
+                <tr class="row-cos"><td>cos(θ)</td><td class="val-col" id="val-cos">0.0000</td></tr>
+                <tr class="row-tan"><td>tan(θ)</td><td class="val-col" id="val-tan">0.0000</td></tr>
+                <tr class="row-sec"><td>sec(θ)</td><td class="val-col" id="val-sec">0.0000</td></tr>
+                <tr class="row-csc"><td>csc(θ)</td><td class="val-col" id="val-csc">0.0000</td></tr>
+                <tr class="row-cot"><td>cot(θ)</td><td class="val-col" id="val-cot">0.0000</td></tr>
+            </table>
         </div>
 
-        <div style="padding:10px; border-top:1px solid #333; background:#050505">
-            <button onclick="randomize()" style="width:100%; margin-bottom:5px;">🎲 CHAOS RANDOMIZE</button>
-            <button onclick="resetDefaults()" class="danger" style="width:100%">⚠ FACTORY RESET</button>
+        <!-- COMPONENT TOGGLES -->
+        <div class="section">
+            <div class="section-title">Component Visibility</div>
+            <div class="toggle-grid">
+                <div class="toggle-btn active" data-type="sin" onclick="toggle('sin')">SIN</div>
+                <div class="toggle-btn active" data-type="cos" onclick="toggle('cos')">COS</div>
+                <div class="toggle-btn active" data-type="tan" onclick="toggle('tan')">TAN</div>
+                <div class="toggle-btn" data-type="sec" onclick="toggle('sec')">SEC</div>
+                <div class="toggle-btn" data-type="csc" onclick="toggle('csc')">CSC</div>
+                <div class="toggle-btn" data-type="cot" onclick="toggle('cot')">COT</div>
+            </div>
+            <div style="margin-top: 10px;">
+                <div class="toggle-btn active" id="btn-labels" onclick="toggleLabels()">SHOW VALUE LABELS</div>
+            </div>
+        </div>
+
+        <!-- SIMULATION PARAMETERS -->
+        <div class="section">
+            <div class="section-title">Environment</div>
+            <div class="input-group" style="margin-bottom:10px;">
+                <label>Unit Scale (px)</label>
+                <input type="range" id="zoom-slider" min="50" max="400" value="200">
+            </div>
+            <div class="input-group">
+                <label>Angular Velocity (deg/frame)</label>
+                <input type="range" id="speed-slider" min="-5" max="5" step="0.1" value="0.5">
+            </div>
         </div>
     </div>
 
 <script>
-/**
- * THE ARCHITECTURE
- * 1. Params Object: The Single Source of Truth for every variable.
- * 2. UI Generator: Automatically builds the control panel based on the Params object.
- * 3. Render Engine: Draws the frame based on current Params.
- */
-
-// ==========================================
-// 1. CONFIGURATION "THE BRAIN"
-// ==========================================
-const P = {
-    // --- GLOBAL ---
-    Simulation: {
-        speed: { val: 1.0, min: -5, max: 5, step: 0.1 },
-        radius: { val: 200, min: 10, max: 500, step: 1 },
-        trail: { val: 0.15, min: 0.01, max: 1.0, step: 0.01, name: "Ghosting Fade" },
-        segments: { val: 0, min: 0, max: 12, step: 1, name: "Polygon Sides (0=Circle)" },
-        lineWidth: { val: 2, min: 0.5, max: 10, step: 0.5 },
-        paused: { val: false, type: 'bool' },
-        showGrid: { val: true, type: 'bool' }
-    },
-
-    // --- MATH HACKS ---
-    Math_Mods: {
-        xMult: { val: 1, min: 1, max: 20, step: 1, name: "X Frequency (Lissajous)" },
-        yMult: { val: 1, min: 1, max: 20, step: 1, name: "Y Frequency" },
-        phaseShift: { val: 0, min: 0, max: 360, step: 1, name: "Phase Shift (Deg)" },
-        distortion: { val: 0, min: 0, max: 50, step: 0.1, name: "Noise/Jitter" }
-    },
-
-    // --- LFO (AUTO-ANIMATION) ---
-    LFO: {
-        active: { val: false, type: 'bool' },
-        target: { val: 'radius', type: 'select', options: ['radius', 'speed', 'segments'] },
-        rate: { val: 0.5, min: 0.01, max: 5, step: 0.01 },
-        depth: { val: 50, min: 0, max: 300, step: 1 }
-    },
-
-    // --- FUNCTIONS ---
-    Cos_X: {
-        show: { val: true, type: 'bool' },
-        color: { val: '#00ccff', type: 'color' },
-        width: { val: 2, min: 0.1, max: 10, step: 0.1 },
-        wave: { val: true, type: 'bool', name: "Draw Wave" }
-    },
-    Sin_Y: {
-        show: { val: true, type: 'bool' },
-        color: { val: '#ff0055', type: 'color' },
-        width: { val: 2, min: 0.1, max: 10, step: 0.1 },
-        wave: { val: true, type: 'bool', name: "Draw Wave" }
-    },
-    Tan: {
-        show: { val: true, type: 'bool' },
-        color: { val: '#ccff00', type: 'color' },
-        limit: { val: 1000, min: 100, max: 5000, step: 100, name: "Clip Length" }
-    },
-    Sec: { show: { val: false, type: 'bool' }, color: '#ffaa00', type: 'color' },
-    Csc: { show: { val: false, type: 'bool' }, color: '#aa00ff', type: 'color' },
-    Cot: { show: { val: false, type: 'bool' }, color: '#00ffaa', type: 'color' },
-
-    // --- WAVES VISUALIZER ---
-    Wave_Settings: {
-        spacing: { val: 2, min: 0.5, max: 10, step: 0.5 },
-        offset: { val: 50, min: 0, max: 300, step: 10, name: "Distance from Circle" },
-        length: { val: 500, min: 100, max: 2000, step: 50, name: "History Length" }
-    },
-
-    // --- PARTICLES ---
-    Particles: {
-        enable: { val: false, type: 'bool' },
-        count: { val: 5, min: 1, max: 20, step: 1, name: "Emission Rate" },
-        decay: { val: 0.95, min: 0.8, max: 0.99, step: 0.01 },
-        scatter: { val: 2, min: 0, max: 10, step: 0.1 }
-    }
-};
-
-// State that isn't user-configurable directly
-const State = {
-    angle: 0,
-    time: 0,
-    particles: [],
-    history: { sin: [], cos: [] },
-    canvas: null,
-    ctx: null,
-    cx: 0, cy: 0,
-    dragging: false,
-    dragStartAngle: 0
-};
-
-// ==========================================
-// 2. UI GENERATOR
-// ==========================================
-function initUI() {
-    const container = document.getElementById('ui-content');
-    container.innerHTML = ''; // Clear
-
-    for (const [sectionKey, params] of Object.entries(P)) {
-        const sectionDiv = document.createElement('div');
-        sectionDiv.className = 'section';
-        if(sectionKey === 'Simulation' || sectionKey === 'Math_Mods') sectionDiv.classList.add('open');
-
-        const header = document.createElement('div');
-        header.className = 'section-header';
-        header.textContent = sectionKey.replace('_', ' ');
-        header.onclick = () => sectionDiv.classList.toggle('open');
-        sectionDiv.appendChild(header);
-
-        const body = document.createElement('div');
-        body.className = 'section-body';
-
-        for (const [key, config] of Object.entries(params)) {
-            const row = document.createElement('div');
-            row.className = 'control-row';
-
-            // Label
-            const label = document.createElement('label');
-            label.textContent = config.name || key;
-            row.appendChild(label);
-
-            let input;
-
-            // Simple Color String handling (legacy from object structure)
-            if (typeof config === 'string' && config.startsWith('#')) {
-                 input = document.createElement('input');
-                 input.type = 'color';
-                 input.value = config;
-                 input.oninput = (e) => P[sectionKey][key] = e.target.value;
-                 row.appendChild(input);
-            }
-            // Complex Config Object
-            else {
-                if (config.type === 'bool') {
-                    input = document.createElement('input');
-                    input.type = 'checkbox';
-                    input.checked = config.val;
-                    input.onchange = (e) => config.val = e.target.checked;
-                    row.appendChild(input);
-                } 
-                else if (config.type === 'color') {
-                    input = document.createElement('input');
-                    input.type = 'color';
-                    input.value = config.val;
-                    input.oninput = (e) => config.val = e.target.value;
-                    row.appendChild(input);
-                }
-                else if (config.type === 'select') {
-                    input = document.createElement('select');
-                    input.style.width = "60px";
-                    input.style.background = "#333";
-                    input.style.color = "#fff";
-                    input.style.border = "none";
-                    config.options.forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt;
-                        o.textContent = opt;
-                        input.appendChild(o);
-                    });
-                    input.value = config.val;
-                    input.onchange = (e) => config.val = e.target.value;
-                    row.appendChild(input);
-                }
-                else {
-                    // Range Slider
-                    input = document.createElement('input');
-                    input.type = 'range';
-                    input.min = config.min;
-                    input.max = config.max;
-                    input.step = config.step;
-                    input.value = config.val;
-                    
-                    const valDisp = document.createElement('span');
-                    valDisp.className = 'val-display';
-                    valDisp.textContent = config.val;
-
-                    input.oninput = (e) => {
-                        let v = parseFloat(e.target.value);
-                        config.val = v;
-                        valDisp.textContent = v;
-                    };
-                    
-                    row.appendChild(input);
-                    row.appendChild(valDisp);
-                }
-            }
-            body.appendChild(row);
-        }
-        sectionDiv.appendChild(body);
-        container.appendChild(sectionDiv);
-    }
-}
-
-// ==========================================
-// 3. LOGIC & MATH ENGINE
-// ==========================================
-
-function update() {
-    if (!P.Simulation.paused.val && !State.dragging) {
-        // Base Speed
-        State.angle += P.Simulation.speed.val * 0.02;
-    }
-
-    State.time += 0.01;
-
-    // LFO Logic
-    if(P.LFO.active.val) {
-        const lfoVal = Math.sin(State.time * P.LFO.rate.val) * P.LFO.depth.val;
-        const target = P.LFO.target.val;
+    // --- CORE SIMULATION STATE ---
+    const Sim = {
+        angleRad: Math.PI / 4, // Internal master source of truth
+        scale: 200,            // Pixels per unit
+        animating: false,
+        speed: 0.5,            // Degrees per frame
         
-        // We temporarily offset the visual value, but don't overwrite base config
-        // This is a simplification; for robust LFO we'd separate base vs current
-        // For now, we'll just hack it into the calculation phase or modify visual radius directly
-    }
+        // Visibility flags
+        show: {
+            sin: true, cos: true, tan: true,
+            sec: false, csc: false, cot: false,
+            labels: true
+        },
 
-    // Particle Logic
-    if (P.Particles.enable.val) {
-        // Add particles
-        const r = getCurrentRadius();
-        const x = Math.cos(State.angle * P.Math_Mods.xMult.val) * r;
-        const y = Math.sin(State.angle * P.Math_Mods.yMult.val) * r;
+        // Canvas Context
+        canvas: document.getElementById('simCanvas'),
+        ctx: null,
+        width: 0,
+        height: 0,
+        cx: 0,
+        cy: 0
+    };
+
+    Sim.ctx = Sim.canvas.getContext('2d');
+
+    // --- INITIALIZATION ---
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
         
-        for(let i=0; i<P.Particles.count.val; i++) {
-            State.particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * P.Particles.scatter.val,
-                vy: (Math.random() - 0.5) * P.Particles.scatter.val,
-                life: 1.0,
-                color: Math.random() > 0.5 ? P.Cos_X.color.val : P.Sin_Y.color.val
-            });
+        // Input Listeners
+        document.getElementById('slider-deg').addEventListener('input', (e) => setAngleDeg(parseFloat(e.target.value)));
+        
+        // Exact Inputs
+        document.getElementById('inp-deg').addEventListener('input', (e) => setAngleDeg(parseFloat(e.target.value)));
+        document.getElementById('inp-rad').addEventListener('input', (e) => setAngleRad(parseFloat(e.target.value) * Math.PI));
+        
+        // Environment
+        document.getElementById('zoom-slider').addEventListener('input', (e) => Sim.scale = parseInt(e.target.value));
+        document.getElementById('speed-slider').addEventListener('input', (e) => Sim.speed = parseFloat(e.target.value));
+        
+        // Animation
+        document.getElementById('btn-animate').addEventListener('click', () => {
+            Sim.animating = !Sim.animating;
+            const btn = document.getElementById('btn-animate');
+            btn.textContent = Sim.animating ? "Stop Rotation" : "Start Rotation";
+            btn.classList.toggle('active');
+        });
+
+        // Mouse Drag Interaction
+        let dragging = false;
+        Sim.canvas.addEventListener('mousedown', (e) => {
+            dragging = true;
+            updateFromMouse(e);
+        });
+        window.addEventListener('mouseup', () => dragging = false);
+        window.addEventListener('mousemove', (e) => {
+            // Update Coordinate Display
+            const rect = Sim.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - Sim.cx) / Sim.scale;
+            const y = -(e.clientY - rect.top - Sim.cy) / Sim.scale; // Invert Y
+            document.getElementById('mouse-coords').textContent = `${x.toFixed(2)}, ${y.toFixed(2)}`;
+
+            if(dragging) updateFromMouse(e);
+        });
+
+        loop();
+    }
+
+    function resize() {
+        // Calculate width based on CSS grid
+        const container = document.getElementById('canvas-container');
+        Sim.canvas.width = container.offsetWidth;
+        Sim.canvas.height = container.offsetHeight;
+        Sim.width = Sim.canvas.width;
+        Sim.height = Sim.canvas.height;
+        Sim.cx = Sim.width / 2;
+        Sim.cy = Sim.height / 2;
+    }
+
+    // --- LOGIC CONTROL ---
+
+    function setAngleDeg(deg) {
+        Sim.angleRad = deg * (Math.PI / 180);
+        updateInputs();
+    }
+
+    function setAngleRad(rad) {
+        Sim.angleRad = rad;
+        updateInputs();
+    }
+
+    function updateFromMouse(e) {
+        const rect = Sim.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left - Sim.cx;
+        const my = e.clientY - rect.top - Sim.cy;
+        // Invert Y for calculation because atan2 expects math coordinates (Y up), canvas is Y down
+        // Actually, let's just use canvas coords and invert the result
+        let angle = Math.atan2(my, mx); 
+        
+        // Convert canvas angle (clockwise positive) to math angle (counter-clockwise positive)
+        // Canvas: Right=0, Down=PI/2. Math: Right=0, Up=PI/2.
+        // We need to invert the Y input effectively.
+        angle = Math.atan2(-my, mx); 
+
+        if (angle < 0) angle += Math.PI * 2;
+        Sim.angleRad = angle;
+        updateInputs();
+    }
+
+    function updateInputs() {
+        // Normalize 0-360
+        let deg = (Sim.angleRad * (180 / Math.PI)) % 360;
+        if(deg < 0) deg += 360;
+        
+        // Avoid infinite loops by checking active element? 
+        // For simplicity, we just update values if they aren't the focused element
+        if(document.activeElement.id !== 'slider-deg') 
+            document.getElementById('slider-deg').value = deg;
+        
+        if(document.activeElement.id !== 'inp-deg') 
+            document.getElementById('inp-deg').value = deg.toFixed(2);
+        
+        if(document.activeElement.id !== 'inp-rad') 
+            document.getElementById('inp-rad').value = (Sim.angleRad / Math.PI).toFixed(2);
+
+        updateTable();
+    }
+
+    function updateTable() {
+        const s = Math.sin(Sim.angleRad);
+        const c = Math.cos(Sim.angleRad);
+        const t = Math.tan(Sim.angleRad);
+
+        // Helper to format text
+        const fmt = (n) => {
+            if(Math.abs(n) > 100) return "∞"; // Simpler overflow visual
+            return n.toFixed(4);
+        };
+
+        document.getElementById('val-sin').textContent = fmt(s);
+        document.getElementById('val-cos').textContent = fmt(c);
+        document.getElementById('val-tan').textContent = fmt(t);
+        document.getElementById('val-sec').textContent = fmt(1/c);
+        document.getElementById('val-csc').textContent = fmt(1/s);
+        document.getElementById('val-cot').textContent = fmt(1/t);
+    }
+
+    function toggle(type) {
+        Sim.show[type] = !Sim.show[type];
+        // Visual toggle update
+        const btn = document.querySelector(`.toggle-btn[data-type="${type}"]`);
+        btn.classList.toggle('active');
+    }
+
+    function toggleLabels() {
+        Sim.show.labels = !Sim.show.labels;
+        document.getElementById('btn-labels').classList.toggle('active');
+    }
+
+    // --- RENDER ENGINE ---
+
+    function drawLine(x1, y1, x2, y2, color, width=2, dash=[]) {
+        Sim.ctx.beginPath();
+        Sim.ctx.strokeStyle = color;
+        Sim.ctx.lineWidth = width;
+        Sim.ctx.setLineDash(dash);
+        Sim.ctx.moveTo(Sim.cx + x1, Sim.cy - y1); // Note -y1 to flip Y axis
+        Sim.ctx.lineTo(Sim.cx + x2, Sim.cy - y2);
+        Sim.ctx.stroke();
+        Sim.ctx.setLineDash([]);
+    }
+
+    function drawText(txt, x, y, color, align="center") {
+        if(!Sim.show.labels) return;
+        Sim.ctx.fillStyle = color;
+        Sim.ctx.font = "12px monospace";
+        Sim.ctx.textAlign = align;
+        // Background for readability
+        const width = Sim.ctx.measureText(txt).width;
+        Sim.ctx.globalAlpha = 0.8;
+        Sim.ctx.fillStyle = "#000";
+        Sim.ctx.fillRect(Sim.cx + x - width/2 - 2, Sim.cy - y - 10, width + 4, 12);
+        Sim.ctx.globalAlpha = 1.0;
+        
+        Sim.ctx.fillStyle = color;
+        Sim.ctx.fillText(txt, Sim.cx + x, Sim.cy - y);
+    }
+
+    function draw() {
+        // Clear
+        Sim.ctx.fillStyle = "#000";
+        Sim.ctx.fillRect(0, 0, Sim.width, Sim.height);
+
+        // Grid
+        Sim.ctx.strokeStyle = "#333";
+        Sim.ctx.lineWidth = 1;
+        
+        // Axes
+        Sim.ctx.beginPath();
+        Sim.ctx.moveTo(0, Sim.cy); Sim.ctx.lineTo(Sim.width, Sim.cy);
+        Sim.ctx.moveTo(Sim.cx, 0); Sim.ctx.lineTo(Sim.cx, Sim.height);
+        Sim.ctx.stroke();
+
+        // Unit Circle
+        Sim.ctx.strokeStyle = "#555";
+        Sim.ctx.beginPath();
+        Sim.ctx.arc(Sim.cx, Sim.cy, Sim.scale, 0, Math.PI*2);
+        Sim.ctx.stroke();
+
+        // Calculations
+        const r = Sim.scale;
+        const theta = Sim.angleRad;
+        const sin = Math.sin(theta);
+        const cos = Math.cos(theta);
+        const tan = Math.tan(theta);
+        
+        const px = cos * r;
+        const py = sin * r; // Positive Y is UP in our draw logic
+
+        // --- DRAW COMPONENTS ---
+
+        // 1. COSINE (X-axis segment)
+        if(Sim.show.cos) {
+            drawLine(0, 0, px, 0, 'var(--c-cos)', 3);
+            drawText(cos.toFixed(2), px/2, -15, '#00ffff');
         }
-    }
 
-    // Update Particles
-    for(let i = State.particles.length - 1; i >= 0; i--) {
-        let p = State.particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life *= P.Particles.decay.val;
-        if(p.life < 0.05) State.particles.splice(i, 1);
-    }
+        // 2. SINE (Vertical segment from X-axis to point)
+        if(Sim.show.sin) {
+            drawLine(px, 0, px, py, 'var(--c-sin)', 3);
+            drawText(sin.toFixed(2), px + (px>0?10:-30), py/2, '#ff0055');
+        }
 
-    updateStats();
-}
+        // 3. RADIUS (Hypotenuse)
+        drawLine(0, 0, px, py, '#fff', 2);
 
-function getCurrentRadius() {
-    let r = P.Simulation.radius.val;
-    if(P.LFO.active.val && P.LFO.target.val === 'radius') {
-        r += Math.sin(State.time * P.LFO.rate.val) * P.LFO.depth.val;
-    }
-    return Math.max(0, r);
-}
+        // 4. TANGENT
+        // Geometrically: A line tangent to the circle at (px, py)
+        // Or standard unit circle def: Tangent at (1,0) (Right side)
+        // Let's use the Visual Tangent Line at x=1 (or x=-1)
+        if(Sim.show.tan) {
+            // We draw the vertical tangent line at x = R (if cos > 0) or x = -R (if cos < 0)
+            const dir = cos >= 0 ? 1 : -1;
+            const tanX = r * dir;
+            const tanY = tanX * tan; 
+            
+            // Draw the line from the x-axis intercept to the extension point
+            drawLine(tanX, 0, tanX, tanY, 'var(--c-tan)', 2);
+            
+            // Dotted extension line from origin to meet tangent
+            drawLine(0, 0, tanX, tanY, '#555', 1, [5,5]);
+            
+            drawText(tan.toFixed(2), tanX + (dir*20), tanY/2, '#00ff00');
+        }
 
-function updateStats() {
-    const r = getCurrentRadius();
-    const xMult = P.Math_Mods.xMult.val;
-    const yMult = P.Math_Mods.yMult.val;
-    
-    // Normalize angle for display
-    let dispAngle = (State.angle % (Math.PI*2));
-    if(dispAngle < 0) dispAngle += Math.PI*2;
+        // 5. COTANGENT
+        // Horizontal line at y = 1 (or -1)
+        if(Sim.show.cot) {
+            const dir = sin >= 0 ? 1 : -1;
+            const cotY = r * dir;
+            const cotX = cotY / tan; // cot = 1/tan
 
-    const x = Math.cos(State.angle * xMult) * r;
-    const y = Math.sin(State.angle * yMult) * r;
+            drawLine(0, cotY, cotX, cotY, 'var(--c-cot)', 2);
+            drawLine(0, 0, cotX, cotY, '#555', 1, [5,5]); // Extension
+            
+            drawText((1/tan).toFixed(2), cotX/2, cotY + (dir*15), '#fff');
+        }
 
-    document.getElementById('rad').textContent = dispAngle.toFixed(2) + "π";
-    document.getElementById('coords').textContent = `x:${x.toFixed(0)} y:${y.toFixed(0)}`;
-}
-
-// ==========================================
-// 4. RENDER ENGINE
-// ==========================================
-function draw() {
-    State.ctx.fillStyle = `rgba(0, 0, 0, ${P.Simulation.trail.val})`;
-    State.ctx.fillRect(0, 0, State.canvas.width, State.canvas.height);
-
-    State.ctx.save();
-    State.ctx.translate(State.cx, State.cy);
-
-    // Apply distortion/shake if active
-    if(P.Math_Mods.distortion.val > 0) {
-        const d = P.Math_Mods.distortion.val;
-        State.ctx.translate((Math.random()-0.5)*d, (Math.random()-0.5)*d);
-    }
-
-    const R = getCurrentRadius();
-    const LW = P.Simulation.lineWidth.val;
-    const phaseRad = P.Math_Mods.phaseShift.val * (Math.PI/180);
-
-    // Current Math Position
-    // We treat Y as inverted for canvas (down is positive), but usually unit circles have Y up.
-    // For visual simplicity, we'll keep canvas coords (Y down) but can invert math if requested.
-    // We will stick to standard Canvas coordinates.
-    
-    const xFreq = P.Math_Mods.xMult.val;
-    const yFreq = P.Math_Mods.yMult.val;
-
-    const currentX = Math.cos(State.angle * xFreq + phaseRad) * R;
-    const currentY = Math.sin(State.angle * yFreq) * R;
-
-    // --- 1. DRAW GRID ---
-    if (P.Simulation.showGrid.val) {
-        State.ctx.strokeStyle = '#222';
-        State.ctx.lineWidth = 1;
-        State.ctx.beginPath();
-        State.ctx.moveTo(-State.cx, 0); State.ctx.lineTo(State.cx, 0);
-        State.ctx.moveTo(0, -State.cy); State.ctx.lineTo(0, State.cy);
-        State.ctx.stroke();
-
-        State.ctx.strokeStyle = '#333';
-        State.ctx.beginPath();
-        if(P.Simulation.segments.val === 0) {
-            State.ctx.arc(0, 0, R, 0, Math.PI * 2);
-        } else {
-            // Polygon Mode
-            const sides = P.Simulation.segments.val;
-            State.ctx.moveTo(R, 0);
-            for(let i=1; i<=sides; i++) {
-                State.ctx.lineTo(
-                    Math.cos(i * 2 * Math.PI / sides) * R,
-                    Math.sin(i * 2 * Math.PI / sides) * R
-                );
+        // 6. SECANT & COSECANT (Hypotenuse extensions)
+        // Secant is the distance from center to where the tangent intersects the X axis?
+        // Actually, usually Secant is drawn on the X axis.
+        // Let's draw the actual Secant Line segment on the axis for clarity.
+        
+        if(Sim.show.sec) {
+            // Secant intersects X axis
+            const secX = r / cos;
+            if(Math.abs(secX) < 5000) {
+                drawLine(0, 0, secX, 0, 'var(--c-sec)', 4); // On X Axis
+                // Visual connector (dotted)
+                drawLine(px, py, secX, 0, 'var(--c-sec)', 1, [2,2]); 
+                drawText((1/cos).toFixed(2), secX/2, 15, '#ffaa00');
             }
         }
-        State.ctx.stroke();
-    }
 
-    // --- 2. TRIG FUNCTIONS ---
-
-    // Cosine (X)
-    if(P.Cos_X.show.val) {
-        State.ctx.strokeStyle = P.Cos_X.color.val;
-        State.ctx.lineWidth = P.Cos_X.width.val;
-        State.ctx.beginPath();
-        State.ctx.moveTo(0, 0);
-        State.ctx.lineTo(currentX, 0);
-        State.ctx.stroke();
-        
-        // Drop line
-        State.ctx.setLineDash([5, 5]);
-        State.ctx.lineWidth = 1;
-        State.ctx.beginPath();
-        State.ctx.moveTo(currentX, 0);
-        State.ctx.lineTo(currentX, currentY);
-        State.ctx.stroke();
-        State.ctx.setLineDash([]);
-    }
-
-    // Sine (Y)
-    if(P.Sin_Y.show.val) {
-        State.ctx.strokeStyle = P.Sin_Y.color.val;
-        State.ctx.lineWidth = P.Sin_Y.width.val;
-        State.ctx.beginPath();
-        State.ctx.moveTo(0, 0);
-        State.ctx.lineTo(0, currentY);
-        State.ctx.stroke();
-
-        // Drop line
-        State.ctx.setLineDash([5, 5]);
-        State.ctx.lineWidth = 1;
-        State.ctx.beginPath();
-        State.ctx.moveTo(0, currentY);
-        State.ctx.lineTo(currentX, currentY);
-        State.ctx.stroke();
-        State.ctx.setLineDash([]);
-    }
-
-    // Tangent
-    if(P.Tan.show.val) {
-        State.ctx.strokeStyle = P.Tan.color.val;
-        State.ctx.lineWidth = 2;
-        // Tangent line is perpendicular to radius. 
-        // Slope of radius = tan(theta). Slope of tangent = -1/tan(theta).
-        // It passes through (currentX, currentY).
-        // Let's draw a line of length 'limit' in both directions of that slope.
-        
-        const normX = Math.cos(State.angle * xFreq + phaseRad);
-        const normY = Math.sin(State.angle * yFreq);
-        
-        // Perpendicular vector
-        const perpX = -normY;
-        const perpY = normX;
-
-        State.ctx.beginPath();
-        State.ctx.moveTo(
-            currentX - perpX * P.Tan.limit.val,
-            currentY - perpY * P.Tan.limit.val
-        );
-        State.ctx.lineTo(
-            currentX + perpX * P.Tan.limit.val,
-            currentY + perpY * P.Tan.limit.val
-        );
-        State.ctx.stroke();
-    }
-
-    // Radius Line
-    State.ctx.strokeStyle = '#fff';
-    State.ctx.lineWidth = LW;
-    State.ctx.beginPath();
-    State.ctx.moveTo(0, 0);
-    State.ctx.lineTo(currentX, currentY);
-    State.ctx.stroke();
-
-    // The Point
-    State.ctx.fillStyle = '#fff';
-    State.ctx.beginPath();
-    State.ctx.arc(currentX, currentY, LW * 2, 0, Math.PI*2);
-    State.ctx.fill();
-
-    // --- 3. WAVEFORMS ---
-    // Store History
-    State.history.sin.unshift(currentY);
-    State.history.cos.unshift(currentX);
-    if(State.history.sin.length > P.Wave_Settings.length.val) {
-        State.history.sin.pop();
-        State.history.cos.pop();
-    }
-
-    const waveOff = R + P.Wave_Settings.offset.val;
-    const spacing = P.Wave_Settings.spacing.val;
-
-    // Draw Sin Wave (Right)
-    if(P.Sin_Y.show.val && P.Sin_Y.wave.val) {
-        State.ctx.strokeStyle = P.Sin_Y.color.val;
-        State.ctx.lineWidth = P.Sin_Y.width.val;
-        State.ctx.beginPath();
-        // Connector
-        State.ctx.moveTo(currentX, currentY);
-        State.ctx.lineTo(waveOff, currentY);
-        // Wave
-        for(let i=0; i<State.history.sin.length; i++) {
-            State.ctx.lineTo(waveOff + i * spacing, State.history.sin[i]);
+        if(Sim.show.csc) {
+            // Cosecant intersects Y axis
+            const cscY = r / sin;
+            if(Math.abs(cscY) < 5000) {
+                drawLine(0, 0, 0, cscY, 'var(--c-csc)', 4); // On Y Axis
+                // Visual connector
+                drawLine(px, py, 0, cscY, 'var(--c-csc)', 1, [2,2]);
+                drawText((1/sin).toFixed(2), 15, cscY/2, '#bf00ff');
+            }
         }
-        State.ctx.stroke();
+
+        // Point Marker
+        Sim.ctx.beginPath();
+        Sim.ctx.arc(Sim.cx + px, Sim.cy - py, 5, 0, Math.PI*2);
+        Sim.ctx.fillStyle = "#fff";
+        Sim.ctx.fill();
+
+        // Angle Arc
+        Sim.ctx.beginPath();
+        // ctx.arc uses clockwise screen coords. Math is Counter Clockwise.
+        // We draw from 0 to -theta to represent upward math rotation
+        Sim.ctx.arc(Sim.cx, Sim.cy, 30, 0, -theta, true);
+        Sim.ctx.strokeStyle = "#fff";
+        Sim.ctx.lineWidth = 1;
+        Sim.ctx.stroke();
+
     }
 
-    // Draw Cos Wave (Bottom)
-    if(P.Cos_X.show.val && P.Cos_X.wave.val) {
-        State.ctx.strokeStyle = P.Cos_X.color.val;
-        State.ctx.lineWidth = P.Cos_X.width.val;
-        State.ctx.beginPath();
-        // Connector
-        State.ctx.moveTo(currentX, currentY);
-        State.ctx.lineTo(currentX, waveOff);
-        // Wave
-        for(let i=0; i<State.history.cos.length; i++) {
-            State.ctx.lineTo(State.history.cos[i], waveOff + i * spacing);
+    function loop() {
+        if(Sim.animating) {
+            Sim.angleRad += Sim.speed * (Math.PI / 180);
+            updateInputs();
         }
-        State.ctx.stroke();
+        draw();
+        requestAnimationFrame(loop);
     }
 
-    // --- 4. PARTICLES ---
-    if (State.particles.length > 0) {
-        for(let p of State.particles) {
-            State.ctx.globalAlpha = p.life;
-            State.ctx.fillStyle = p.color;
-            State.ctx.beginPath();
-            State.ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
-            State.ctx.fill();
-        }
-        State.ctx.globalAlpha = 1.0;
-    }
-
-    State.ctx.restore();
-    requestAnimationFrame(loop);
-}
-
-function loop() {
-    update();
-    draw();
-}
-
-// ==========================================
-// 5. UTILITIES & EVENTS
-// ==========================================
-
-function resize() {
-    State.canvas.width = window.innerWidth;
-    State.canvas.height = window.innerHeight;
-    State.cx = State.canvas.width / 2;
-    State.cy = State.canvas.height / 2;
-}
-
-function randomize() {
-    P.Simulation.radius.val = 100 + Math.random() * 150;
-    P.Simulation.speed.val = (Math.random() - 0.5) * 4;
-    P.Math_Mods.xMult.val = Math.floor(Math.random() * 5) + 1;
-    P.Math_Mods.yMult.val = Math.floor(Math.random() * 5) + 1;
-    P.Particles.enable.val = Math.random() > 0.5;
-    P.Cos_X.color.val = '#' + Math.floor(Math.random()*16777215).toString(16);
-    P.Sin_Y.color.val = '#' + Math.floor(Math.random()*16777215).toString(16);
-    
-    // Refresh UI
-    initUI();
-}
-
-function resetDefaults() {
-    location.reload();
-}
-
-// Initialization
-window.onload = () => {
-    State.canvas = document.getElementById('canvas');
-    State.ctx = State.canvas.getContext('2d');
-    resize();
-    initUI();
-    loop();
-
-    window.addEventListener('resize', resize);
-    
-    // Mouse Interaction
-    State.canvas.addEventListener('mousedown', (e) => {
-        State.dragging = true;
-        P.Simulation.paused.val = true;
-        // update UI check
-        initUI();
-    });
-    window.addEventListener('mouseup', () => {
-        State.dragging = false;
-        P.Simulation.paused.val = false;
-        initUI();
-    });
-    window.addEventListener('mousemove', (e) => {
-        if(State.dragging) {
-            const dx = e.clientX - State.cx;
-            const dy = e.clientY - State.cy;
-            State.angle = Math.atan2(dy, dx);
-        }
-    });
-};
+    // Start
+    init();
 
 </script>
 </body>
